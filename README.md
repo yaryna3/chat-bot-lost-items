@@ -9,4 +9,34 @@
 
 ```bash
 pip install -r requirements.txt
+```
+
+## Запуск
+
+Для запуску ботів використовуйте команди:
+
+```bash
+python bot.py        # для запуску Telegram бота
+python botdiscord.py  # для запуску Discord бота
+```
+
+## Структура проєкту
+
+* `bot.py` – головний скрипт Telegram бота
+* `botdiscord.py` – головний скрипт Discord бота
+* `schema.sql` – база даних
+* `README.md` – ця інструкція
+* `requirements.txt` – список бібліотек для Python
+
+## Особливості
+
+* Підтримка Telegram та Discord
+* Можливість розширення функціоналу під нові платформи
+
+## Додаток: Репозиторій з кодом
+
+Весь код курсової роботи доступний у публічному репозиторії на GitHub:
+
+[https://github.com/yaryna3/chat-bot-lost-items](https://github.com/yaryna3/chat-bot-lost-items)
+
 
