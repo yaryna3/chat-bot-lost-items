@@ -193,30 +193,44 @@ async def add_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ------------------------------
 # Пошук речі
 # ------------------------------
+# ------------------------------
+# Пошук речі (оновлений)
+# ------------------------------
 async def search_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
     step = context.user_data.get('step')
 
     if step == 'city':
+        # Вибір міста
         keyboard = [[KeyboardButton(city)] for city in CITIES] + [[KeyboardButton("Усі міста")]]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text("Оберіть місто для пошуку:", reply_markup=reply_markup)
+        context.user_data['step'] = 'category'  # далі обираємо категорію
+        return SEARCH
+
+    elif step == 'category':
+        context.user_data['selected_city'] = update.message.text
+        keyboard = [[KeyboardButton(cat)] for cat in CATEGORIES] + [[KeyboardButton("Усі категорії")]]
+        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+        await update.message.reply_text("Оберіть категорію:", reply_markup=reply_markup)
         context.user_data['step'] = 'keyword'
         return SEARCH
 
     elif step == 'keyword':
-        context.user_data['selected_city'] = update.message.text
-        await update.message.reply_text("Введи ключове слово для пошуку:", reply_markup=ReplyKeyboardRemove())
+        context.user_data['selected_category'] = update.message.text
+        await update.message.reply_text("Введіть ключове слово для пошуку (можна пропустити):", reply_markup=ReplyKeyboardRemove())
         context.user_data['step'] = 'search'
         return SEARCH
 
     elif step == 'search':
-        keyword = update.message.text.strip()
+        keyword = update.message.text.strip() if update.message.text.strip() else None
         city = context.user_data.get('selected_city', "Усі міста")
+        category = context.user_data.get('selected_category', "Усі категорії")
 
         context.user_data.pop('step', None)
         context.user_data.pop('selected_city', None)
+        context.user_data.pop('selected_category', None)
 
-        words = keyword.split()
+        words = keyword.split() if keyword else []
         query_parts = []
         params = []
 
@@ -224,28 +238,17 @@ async def search_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
             query_parts.append("name LIKE %s")
             params.append(f"%{w}%")
 
-        where_clause = " AND ".join(query_parts)
+        where_clause = " AND ".join(query_parts) if query_parts else "1"
 
         try:
             conn = pymysql.connect(**DB_CONFIG)
             with conn.cursor() as cursor:
-                if city == "Усі міста":
-                    query = f"""
-                        SELECT name, location, category, description, contact, photo
-                        FROM items
-                        WHERE {where_clause}
-                        ORDER BY (name = %s) DESC, (name LIKE %s) DESC
-                    """
-                    params_query = params + [keyword, f"%{keyword}%"]
-                else:
-                    query = f"""
-                        SELECT name, location, category, description, contact, photo
-                        FROM items
-                        WHERE location=%s AND {where_clause}
-                        ORDER BY (name = %s) DESC, (name LIKE %s) DESC
-                    """
-                    params_query = [city] + params + [keyword, f"%{keyword}%"]
-
+                query = f"""
+                    SELECT name, location, category, description, contact, photo
+                    FROM items
+                    WHERE (location=%s OR %s='Усі міста') AND (category=%s OR %s='Усі категорії') AND {where_clause}
+                """
+                params_query = [city, city, category, category] + params
                 cursor.execute(query, tuple(params_query))
                 results = cursor.fetchall()
 
@@ -260,8 +263,6 @@ async def search_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         await update.message.reply_text(text)
             else:
                 await update.message.reply_text("😔 Нічого не знайдено.")
-        except Exception as e:
-            await update.message.reply_text(f"❌ Помилка: {e}")
         finally:
             conn.close()
 
